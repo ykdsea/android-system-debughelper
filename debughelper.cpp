@@ -15,10 +15,11 @@ void DebugHelper::enableCoreDump() {
      struct rlimit rl;
     rl.rlim_cur = RLIM_INFINITY;
     rl.rlim_max = RLIM_INFINITY;
-     if (setrlimit(RLIMIT_CORE, &rl) < 0) 
+     if (setrlimit(RLIMIT_CORE, &rl) < 0) {
             ALOGE("enable core dump fail");
-    else
+    } else {
            ALOGE("enable core dump successfully");
+    }
 }
 
 void DebugHelper::dumpCore() {
@@ -77,7 +78,7 @@ int DebugHelper::getTaskComm(pid_t tid, char* tskname, size_t namelen) {
     char path[128]={0};
     sprintf(path,"/proc/%d/comm", tid);
 
-    if(readFileToStr(path, tskname, namelen) != 0) {
+    if (readFileToStr(path, tskname, namelen) != 0) {
         return -1;
     }
     return 0;
@@ -105,14 +106,14 @@ bool DebugHelper::isSystemServer(){
 
 int DebugHelper::writeToFile(const char*path, const char* content, const size_t len) {
     int fd = open(path, O_WRONLY);
-    if(fd < 0) {
+    if (fd < 0) {
         ALOGE("Write %s to file %s failed!!", content, path);
         return -1;
     }
 
     size_t writesize = write(fd,content,len);
     close(fd);
-    if( writesize != len) {
+    if (writesize != len) {
         ALOGE("Write %zu len to %s failed, only %zu written", len, path, writesize);
         return -1;
     }
@@ -122,7 +123,7 @@ int DebugHelper::writeToFile(const char*path, const char* content, const size_t 
 int DebugHelper::readFileToStr(const char* filepath, char* result, const size_t result_len) {
     char content[256];
     int fd = open(filepath, O_RDONLY);
-    if(fd < 0){
+    if (fd < 0) {
         return -1;
     }
 

@@ -21,7 +21,7 @@ Debughelper gaves out a set of api to help debugging system issues;
 #include "cutils/properties.h"
 
 /*
-ATTENTATION: 
+ATTENTATION:
 Link libcutils may cause crash. (Ex, when use debughelper in libbacktrace, Android will can't boot up.)
 */
 
@@ -36,14 +36,14 @@ Link libcutils may cause crash. (Ex, when use debughelper in libbacktrace, Andro
 class DebugHelper {
 public:
     DebugHelper(){iTraceCount = 0;}
-    
+
     //core dump
     static void enableCoreDump();
     static void dumpCore();
     static void setSigToDumpCore(int signum);
 
     //dump kernel stack of current process
-    static void dumpKernelStack(pid_t tid); 
+    static void dumpKernelStack(pid_t tid);
     static void dumpAllKernelStack();
     static int getTaskComm(pid_t tid, char* tskname, size_t namelen);
 
