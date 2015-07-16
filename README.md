@@ -16,3 +16,7 @@ b) user setprop "sys.debughelper.dump.binder" to "true" to dump binder state
 a) import "init.debughelper.rc" to init.rc
 b) call DebugHelper::enableCoreDump() in surfaceflinger main();
 c) setprop "sys.debughelper.stop.sf" to "true" to send SIGESGV to surfaceflinger
+
+
+#ATTENTATION:
+a)Use libcutils may cause crash. (Ex, when use debughelper in libbacktrace, Android will can't boot up.)

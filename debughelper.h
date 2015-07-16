@@ -28,18 +28,6 @@
 #include "log/log.h"
 #include "cutils/properties.h"
 
-/*
-ATTENTATION:
-Link libcutils may cause crash. (Ex, when use debughelper in libbacktrace, Android will can't boot up.)
-*/
-
-/*
-(1) add watch function for check process state;
-
-(2) add fd leak debug;
-
-
-*/
 
 class DebugHelper {
 public:
@@ -57,6 +45,7 @@ public:
 
     //sysrq dump
     static void dumpKernelBlockStat();
+    static void dumpKernelActiveCpuStat();
     static void dumpKernelMemoryStat();
 
     //misc functions
