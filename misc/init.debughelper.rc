@@ -1,0 +1,27 @@
+# for dump binder state
+service binderdbg /system/bin/binderdump.sh
+    class core
+    console
+    disabled
+    oneshot
+
+on property:sys.debughelper.dump.binder=true
+    start binderdbg
+
+#for surfaceflinger core dump
+service sfstop /system/bin/sf.stop.sh
+    class core
+    console
+    disabled
+    oneshot
+
+on property:sys.debughelper.stop.sf=true
+    start sfstop
+
+
+# set core dump parameters
+on boot
+    setrlimit 4 -1 -1
+    write /proc/sys/kernel/core_pattern "/data/core-%e.%p.%u"
+    write /proc/sys/fs/suid_dumpable 1
+

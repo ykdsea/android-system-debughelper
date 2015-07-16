@@ -1,0 +1,66 @@
+/*
+Debughelper gaves out a set of api to help debugging system issues;
+*/
+#ifndef SYSTEM_DEBUG_HELPER_H_
+#define SYSTEM_DEBUG_HELPER_H_
+
+
+#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <dirent.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <string.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+
+#include "log/log.h"
+#include "cutils/properties.h"
+
+/*
+ATTENTATION: 
+Link libcutils may cause crash. (Ex, when use debughelper in libbacktrace, Android will can't boot up.)
+*/
+
+/*
+(1) add watch function for check process state;
+
+(2) add fd leak debug;
+
+
+*/
+
+class DebugHelper {
+public:
+    DebugHelper(){iTraceCount = 0;}
+    
+    //core dump
+    static void enableCoreDump();
+    static void dumpCore();
+    static void setSigToDumpCore(int signum);
+
+    //dump kernel stack of current process
+    static void dumpKernelStack(pid_t tid); 
+    static void dumpAllKernelStack();
+    static int getTaskComm(pid_t tid, char* tskname, size_t namelen);
+
+    //sysrq dump
+    static void dumpKernelBlockStat();
+    static void dumpKernelMemoryStat();
+
+    //misc functions
+    void buildTracesFilePath(char* filepath);
+    int getTraceCount() {return iTraceCount;}
+
+    static bool isSystemServer();
+private:
+    static int writeToFile(const char*path, const char* content, const size_t len);
+    static int readFileToStr(const char* filepath, char* result, const size_t result_len);
+
+    int iTraceCount;
+};
+
+#endif
