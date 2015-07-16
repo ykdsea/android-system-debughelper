@@ -1,6 +1,14 @@
 /*
-Debughelper gaves out a set of api to help debugging system issues;
-*/
+ *  android system debug library;
+ *
+ *  Copyright (C) Amlogic
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+
 #ifndef SYSTEM_DEBUG_HELPER_H_
 #define SYSTEM_DEBUG_HELPER_H_
 
