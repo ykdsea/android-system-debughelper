@@ -36,7 +36,7 @@
 
 class DebugHelper {
 public:
-    DebugHelper(){iTraceCount = 0;}
+    static DebugHelper* getInstance();
 
     //core dump
     static void enableCoreDump();
@@ -55,7 +55,7 @@ public:
 
     //misc functions
     void buildTracesFilePath(char* filepath);
-    int getTraceCount() {return iTraceCount;}
+    int getTraceCount() {return m_iTraceCount;}
 
     static bool isSystemServer();
 
@@ -63,10 +63,13 @@ public:
     static bool dumpFds();
 
 private:
+    DebugHelper(){m_iTraceCount = 0;}
+
     static int writeToFile(const char*path, const char* content, const size_t len);
     static int readFileToStr(const char* filepath, char* result, const size_t result_len);
 
-    int iTraceCount;
+    static DebugHelper * gInstance;
+    int m_iTraceCount;
 };
 
 #endif

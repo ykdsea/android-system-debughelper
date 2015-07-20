@@ -13,10 +13,20 @@
 
 #include "debughelper.h"
 
+DebugHelper* DebugHelper::gInstance = NULL;
 
 static void dumpCoreAction(int, siginfo_t*, void* sigcontext) {
     kill(getpid(),SIGSEGV);
 }
+
+
+DebugHelper* DebugHelper::getInstance() {
+    if (gInstance == NULL) {
+        gInstance = new DebugHelper();
+    }
+    return gInstance;
+}
+
 
 void DebugHelper::enableCoreDump() {
     //default is handled by debuggerd, reset it to default handler.
@@ -108,8 +118,8 @@ void DebugHelper::dumpKernelMemoryStat() {
 }
 
 void DebugHelper::buildTracesFilePath(char* filepath) {
-    sprintf(filepath, "/data/anr/traces-%d-%d.txt", getpid(), iTraceCount);
-    iTraceCount ++;
+    sprintf(filepath, "/data/anr/traces-%d-%d.txt", getpid(), m_iTraceCount);
+    m_iTraceCount ++;
 }
 
 bool DebugHelper::isSystemServer(){
@@ -168,7 +178,7 @@ static bool doDumpFds(int mCount) {
         return false;
     }
 
-    while((dirp = readdir(dp)) != NULL) {
+    while ((dirp = readdir(dp)) != NULL) {
         if (strcmp(dirp->d_name, ".") == 0 || strcmp(dirp->d_name, "..") == 0)
             continue;   // ignore dot and dot-dot
 
@@ -192,12 +202,12 @@ static bool doDumpFds(int mCount) {
         if ((d_fd = opendir(name)) == NULL) {
             ALOGD("open %s error\n", name);
         } else {
-			while ((entry = readdir(d_fd)) != NULL) {
-				/* Skip entries '.' and '..' (and any hidden file) */
-				if (entry->d_name[0] == '.')
-					continue;
+            while ((entry = readdir(d_fd)) != NULL) {
+                /* Skip entries '.' and '..' (and any hidden file) */
+                if (entry->d_name[0] == '.')
+                    continue;
 
-				strncpy(name + baseofs, entry->d_name, 10);
+                strncpy(name + baseofs, entry->d_name, 10);
                 if ((readsize = readlink(name, link, sizeof(link))) == -1)
                     continue;
 
