@@ -25,3 +25,11 @@ on boot
     write /proc/sys/kernel/core_pattern "/data/core-%e.%p.%u"
     write /proc/sys/fs/suid_dumpable 1
 
+# for dump file descriptors
+service dumpfd /system/bin/dumpfd.sh
+    class core
+    console
+    disabled
+
+on property:sys.debughelper.dump.fd=true
+    start dumpfd

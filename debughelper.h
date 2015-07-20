@@ -24,10 +24,15 @@
 #include <string.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <pthread.h>
 
 #include "log/log.h"
 #include "cutils/properties.h"
 
+#define SLEEP_TIME 1*1e4
+#define DUMP_TIME 20*60*1e6 //20 minutes
 
 class DebugHelper {
 public:
@@ -53,6 +58,10 @@ public:
     int getTraceCount() {return iTraceCount;}
 
     static bool isSystemServer();
+
+    // dump file descriptor perodically
+    static bool dumpFds();
+
 private:
     static int writeToFile(const char*path, const char* content, const size_t len);
     static int readFileToStr(const char* filepath, char* result, const size_t result_len);

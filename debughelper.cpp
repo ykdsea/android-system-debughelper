@@ -148,4 +148,112 @@ int DebugHelper::readFileToStr(const char* filepath, char* result, const size_t 
     return 0;
 }
 
+static long elapseTime(struct timeval *t_now, struct timeval *t_prev)
+{
+    if (t_now == NULL || t_prev == NULL)
+        return 0;
 
+    return ((t_now->tv_sec * 1e6 + t_now->tv_usec)-(t_prev->tv_sec * 1e6 + t_prev->tv_usec));
+}
+
+static bool doDumpFds(int mCount) {
+    char name[128], link[128], comm[128];
+    char *fdlink;
+    DIR *dp, *d_fd;
+    struct dirent *entry, *dirp;
+    int pid, baseofs, readsize, fd_count;
+
+    if ((dp = opendir("/proc")) == NULL) {
+        ALOGE("open /proc error\n");
+        return false;
+    }
+
+    while((dirp = readdir(dp)) != NULL) {
+        if (strcmp(dirp->d_name, ".") == 0 || strcmp(dirp->d_name, "..") == 0)
+            continue;   // ignore dot and dot-dot
+
+        pid = atoi(dirp->d_name);
+
+        if (pid <= 0)
+            continue;
+
+        baseofs = sprintf(name, "/proc/%d/fd/", pid);
+        DebugHelper::getTaskComm(pid, comm, sizeof(comm));
+
+        for (int i = 0; i < sizeof(comm); i++) {
+            if (comm[i] == '\n') {
+                comm[i] = '\0';
+                break;
+            }
+        }
+
+        fd_count = 0;
+
+        if ((d_fd = opendir(name)) == NULL) {
+            ALOGD("open %s error\n", name);
+        } else {
+			while ((entry = readdir(d_fd)) != NULL) {
+				/* Skip entries '.' and '..' (and any hidden file) */
+				if (entry->d_name[0] == '.')
+					continue;
+
+				strncpy(name + baseofs, entry->d_name, 10);
+                if ((readsize = readlink(name, link, sizeof(link))) == -1)
+                    continue;
+
+                link[readsize] = '\0';
+                fd_count++;
+                if (mCount % 2 == 0) {
+                    ALOGD("\t%d --> %s\t%s -- %s \n", pid, comm, entry->d_name, link);
+                }
+            }
+        }
+
+        ALOGD("%d --> %s\t total fds:%d\n", pid, comm, fd_count);
+    }
+
+    return true;
+}
+
+
+static void *runner(void *) {
+    int mCount = 0;
+    struct timeval mPrev;
+    struct timeval mNow;
+
+    gettimeofday(&mPrev, NULL);
+
+    while (1) {
+        gettimeofday(&mNow, NULL);
+        if (elapseTime(&mNow, &mPrev) > DUMP_TIME) {
+            mPrev = mNow;
+            mCount++;
+            if (!doDumpFds(mCount)) {
+                ALOGD("exit fd dump thread\n");
+                break;
+            }
+        }
+        usleep(SLEEP_TIME);
+    }
+
+    pthread_exit(NULL);
+}
+
+bool DebugHelper::dumpFds() {
+    pthread_t pth;
+    int ret;
+
+    ret = pthread_create(&pth, NULL, runner, NULL);
+    if (ret != 0) {
+        ALOGE(" create pthread error\n");
+        return false;
+    }
+
+    ret = pthread_join(pth, NULL);
+    if (ret != 0) {
+        ALOGE(" Count not join pthread\n");
+        return false;
+    }
+
+    return true;
+}
