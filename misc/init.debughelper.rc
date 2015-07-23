@@ -24,6 +24,7 @@ on boot
     setrlimit 4 -1 -1
     write /proc/sys/kernel/core_pattern "/data/core-%e.%p.%u"
     write /proc/sys/fs/suid_dumpable 1
+    chmod  0755 /sys/kernel/debug
 
 # for dump file descriptors
 service dumpfd /system/bin/dumpfd.sh
