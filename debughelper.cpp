@@ -95,6 +95,25 @@ void DebugHelper::dumpAllKernelStack() {
     closedir(d);
 }
 
+void DebugHelper::dumpIonUsage() {
+    //dump ion usage
+    const size_t content_len = 4096;
+    char * content = (char*)malloc(content_len);
+
+    //dump system heap
+    content[0] = 0;
+    readFileToStr("/sys/kernel/debug/ion/heaps/vmalloc_ion", content, content_len);
+    ALOGE("ION System Heap: ");
+    ALOGE("%s",content);
+
+    //dump carveout heap
+    content[0] = 0;
+    readFileToStr("/sys/kernel/debug/ion/heaps/carveout_ion", content, content_len);
+    ALOGE("ION Carveout Heap(reserver): ");
+    ALOGE("%s",content);
+}
+
+
 int DebugHelper::getTaskComm(pid_t tid, char* tskname, size_t namelen) {
     char path[128]={0};
     sprintf(path,"/proc/%d/comm", tid);

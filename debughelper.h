@@ -46,6 +46,7 @@ public:
     //dump kernel stack of current process
     static void dumpKernelStack(pid_t tid);
     static void dumpAllKernelStack();
+    static void dumpIonUsage();
     static int getTaskComm(pid_t tid, char* tskname, size_t namelen);
 
     //sysrq dump
