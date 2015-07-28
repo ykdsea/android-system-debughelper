@@ -31,12 +31,18 @@
 #include "log/log.h"
 #include "cutils/properties.h"
 
-#define SLEEP_TIME 1*1e4
-#define DUMP_TIME 20*60*1e6 //20 minutes
+typedef void (*WatchCbk) ();
 
 class DebugHelper {
 public:
     static DebugHelper* getInstance();
+
+    //watch thread
+    int createWatch(WatchCbk cbk, int intervalMs);
+    void startWatch();
+    void stopWatch();
+    void destroyWatch();
+    static void* watchLoop(void*data);
 
     //core dump
     static void enableCoreDump();
@@ -56,21 +62,36 @@ public:
 
     //misc functions
     void buildTracesFilePath(char* filepath);
-    int getTraceCount() {return m_iTraceCount;}
+    int getTraceCount() {return mTraceCount;}
 
     static bool isSystemServer();
 
-    // dump file descriptor perodically
-    static bool dumpFds();
+    // function used to watch
+    static void watchFdUsage();
+
+public:
+    enum WatchStat {WATCH_UNINIT =0, WATCH_INIT, WATCH_START, WATCH_STOP};
+    struct WatchData {
+            int intervMs;
+            int trigTimes;
+            WatchStat watchStatus;
+            WatchCbk cbk;
+            pthread_mutex_t mutex;
+            pthread_cond_t cond;
+    };
 
 private:
-    DebugHelper(){m_iTraceCount = 0;}
+    DebugHelper();
 
     static int writeToFile(const char*path, const char* content, const size_t len);
     static int readFileToStr(const char* filepath, char* result, const size_t result_len);
 
     static DebugHelper * gInstance;
-    int m_iTraceCount;
+    int mTraceCount;
+
+    //for watch thread
+    pthread_t mWatchThread;
+    WatchData mWatchData;
 };
 
 #endif

@@ -19,6 +19,12 @@ static void dumpCoreAction(int, siginfo_t*, void* sigcontext) {
     kill(getpid(),SIGSEGV);
 }
 
+DebugHelper::DebugHelper() {
+    mTraceCount = 0;
+    memset(&mWatchData, 0, sizeof(mWatchData));
+    pthread_mutex_init(&(mWatchData.mutex), NULL);
+    pthread_cond_init(&(mWatchData.cond), NULL);
+}
 
 DebugHelper* DebugHelper::getInstance() {
     if (gInstance == NULL) {
@@ -26,7 +32,6 @@ DebugHelper* DebugHelper::getInstance() {
     }
     return gInstance;
 }
-
 
 void DebugHelper::enableCoreDump() {
     //default is handled by debuggerd, reset it to default handler.
@@ -111,8 +116,9 @@ void DebugHelper::dumpIonUsage() {
     readFileToStr("/sys/kernel/debug/ion/heaps/carveout_ion", content, content_len);
     ALOGE("ION Carveout Heap(reserver): ");
     ALOGE("%s",content);
-}
 
+    free(content);
+}
 
 int DebugHelper::getTaskComm(pid_t tid, char* tskname, size_t namelen) {
     char path[128]={0};
@@ -137,8 +143,8 @@ void DebugHelper::dumpKernelMemoryStat() {
 }
 
 void DebugHelper::buildTracesFilePath(char* filepath) {
-    sprintf(filepath, "/data/anr/traces-%d-%d.txt", getpid(), m_iTraceCount);
-    m_iTraceCount ++;
+    sprintf(filepath, "/data/anr/traces-%d-%d.txt", getpid(), mTraceCount);
+    mTraceCount ++;
 }
 
 bool DebugHelper::isSystemServer(){
@@ -164,7 +170,6 @@ int DebugHelper::writeToFile(const char*path, const char* content, const size_t 
 }
 
 int DebugHelper::readFileToStr(const char* filepath, char* result, const size_t result_len) {
-    char content[256];
     int fd = open(filepath, O_RDONLY);
     if (fd < 0) {
         return -1;
@@ -177,15 +182,123 @@ int DebugHelper::readFileToStr(const char* filepath, char* result, const size_t 
     return 0;
 }
 
-static long elapseTime(struct timeval *t_now, struct timeval *t_prev)
-{
-    if (t_now == NULL || t_prev == NULL)
-        return 0;
 
-    return ((t_now->tv_sec * 1e6 + t_now->tv_usec)-(t_prev->tv_sec * 1e6 + t_prev->tv_usec));
+//*****************Watch function****************
+#define SLEEP_AND_WAIT_STATUS_CHANGE(sec, nsec) \
+    do {\
+        int ret = 0;\
+        struct timespec waittime;\
+        struct timeval now;\
+        gettimeofday(&now, NULL);\
+        waittime.tv_sec = now.tv_sec + sec;\
+        waittime.tv_nsec = now.tv_usec * 1000 + nsec;\
+        do {\
+            ret = pthread_cond_timedwait(&(pdata->cond), &(pdata->mutex), &waittime);\
+        } while (ret && (ret != ETIMEDOUT));\
+    } while(0);
+
+void* DebugHelper::watchLoop(void*data) {
+    WatchData* pdata = (WatchData*)data;
+
+    while (true) {
+        pthread_mutex_lock(&(pdata->mutex));
+        switch (pdata->watchStatus) {
+            case WATCH_START:
+                if(pdata->cbk != NULL) {
+                    pdata->trigTimes ++;
+                    ALOGE("Watche callback triggered (%d) .", pdata->trigTimes);
+                    pdata->cbk();
+                    SLEEP_AND_WAIT_STATUS_CHANGE(0, pdata->intervMs*1000*1000);
+                } else {
+                    ALOGE("No watch callbak, looping empty !");
+                    SLEEP_AND_WAIT_STATUS_CHANGE(10, 0);
+                }
+                break;
+            case WATCH_INIT:
+                ALOGD("Watch init, wait to START");
+                SLEEP_AND_WAIT_STATUS_CHANGE(10, 0);
+                break;
+            case WATCH_STOP:
+                ALOGD("Watch stoped, wait to RESTART or EXIT");
+                SLEEP_AND_WAIT_STATUS_CHANGE(10, 0);
+                break;
+            case WATCH_UNINIT:
+                ALOGE("Watch Exit watch thread!");
+                pthread_mutex_unlock(&(pdata->mutex));
+                pthread_exit(NULL);
+                break;
+            default:
+                ALOGE("error watch status %d", pdata->watchStatus);
+                break;
+        }
+        pthread_mutex_unlock(&(pdata->mutex));
+    }
+
+    return NULL;
 }
 
-static bool doDumpFds(int mCount) {
+int DebugHelper::createWatch(WatchCbk cbk, int intervalMs) {
+    if(mWatchData.watchStatus == WATCH_UNINIT) {
+        mWatchData.watchStatus = WATCH_INIT;
+        mWatchData.intervMs = intervalMs;
+        mWatchData.cbk = cbk;
+        mWatchData.trigTimes = 0;
+        pthread_mutex_init(&(mWatchData.mutex), NULL);
+        pthread_cond_init(&(mWatchData.cond), NULL);
+
+        if (0 != pthread_create(&mWatchThread, NULL, DebugHelper::watchLoop, (void*)(&mWatchData))) {
+            memset(&mWatchData,0,sizeof(mWatchData));
+            return -1;
+        }
+        return 0;
+    } else {
+        ALOGE("Watch already created!");
+        return -1;
+    }
+}
+
+void DebugHelper::startWatch() {
+    if (mWatchData.watchStatus > WATCH_UNINIT) {
+        pthread_mutex_lock(&(mWatchData.mutex));
+        mWatchData.watchStatus = WATCH_START;
+        mWatchData.trigTimes = 0;
+        pthread_cond_signal(&(mWatchData.cond));
+        pthread_mutex_unlock(&(mWatchData.mutex));
+    } else {
+        ALOGE("Watch havn't init!");
+    }
+}
+
+void DebugHelper::stopWatch() {
+    if (mWatchData.watchStatus == WATCH_START) {
+        pthread_mutex_lock(&(mWatchData.mutex));
+        mWatchData.watchStatus = WATCH_STOP;
+        pthread_cond_signal(&(mWatchData.cond));
+        pthread_mutex_unlock(&(mWatchData.mutex));
+    } else {
+        ALOGE("Watch havn't start!");
+    }
+}
+
+void DebugHelper::destroyWatch() {
+    if (mWatchData.watchStatus > WATCH_UNINIT) {
+        pthread_mutex_lock(&(mWatchData.mutex));
+        mWatchData.watchStatus = WATCH_UNINIT;
+        pthread_cond_signal(&(mWatchData.cond));
+        pthread_mutex_unlock(&(mWatchData.mutex));
+
+        if (pthread_join(mWatchThread, NULL) != 0)
+            ALOGE("wait watch thread exit fail!\n");
+        pthread_mutex_destroy(&(mWatchData.mutex));
+        pthread_cond_destroy(&(mWatchData.cond));
+    } else {
+        ALOGE("Watch havn't init!");
+    }
+}
+
+//**************Watch functions for dump*******************
+void DebugHelper::watchFdUsage() {
+    static bool bDumpDetail = true;
     char name[128], link[128], comm[128];
     char *fdlink;
     DIR *dp, *d_fd;
@@ -194,7 +307,7 @@ static bool doDumpFds(int mCount) {
 
     if ((dp = opendir("/proc")) == NULL) {
         ALOGE("open /proc error\n");
-        return false;
+        return ;
     }
 
     while ((dirp = readdir(dp)) != NULL) {
@@ -232,7 +345,7 @@ static bool doDumpFds(int mCount) {
 
                 link[readsize] = '\0';
                 fd_count++;
-                if (mCount % 2 == 0) {
+                if (bDumpDetail) {
                     ALOGD("\t%d --> %s\t%s -- %s \n", pid, comm, entry->d_name, link);
                 }
             }
@@ -241,48 +354,6 @@ static bool doDumpFds(int mCount) {
         ALOGD("%d --> %s\t total fds:%d\n", pid, comm, fd_count);
     }
 
-    return true;
+    bDumpDetail = !bDumpDetail;
 }
 
-
-static void *runner(void *) {
-    int mCount = 0;
-    struct timeval mPrev;
-    struct timeval mNow;
-
-    gettimeofday(&mPrev, NULL);
-
-    while (1) {
-        gettimeofday(&mNow, NULL);
-        if (elapseTime(&mNow, &mPrev) > DUMP_TIME) {
-            mPrev = mNow;
-            mCount++;
-            if (!doDumpFds(mCount)) {
-                ALOGD("exit fd dump thread\n");
-                break;
-            }
-        }
-        usleep(SLEEP_TIME);
-    }
-
-    pthread_exit(NULL);
-}
-
-bool DebugHelper::dumpFds() {
-    pthread_t pth;
-    int ret;
-
-    ret = pthread_create(&pth, NULL, runner, NULL);
-    if (ret != 0) {
-        ALOGE(" create pthread error\n");
-        return false;
-    }
-
-    ret = pthread_join(pth, NULL);
-    if (ret != 0) {
-        ALOGE(" Count not join pthread\n");
-        return false;
-    }
-
-    return true;
-}
