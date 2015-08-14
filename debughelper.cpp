@@ -65,8 +65,7 @@ void DebugHelper::dumpKernelStack(pid_t tid) {
     const size_t stack_content_len = 4096;
     char comm_name[64] = {0};
     char stack_file[64]= {0};
-    char *stack_content = (char*)malloc(stack_content_len);
-    stack_content[0] = 0;
+    char *stack_content = (char*)calloc(stack_content_len, 1);
     sprintf(stack_file,"/proc/self/task/%d/stack",tid);
 
     getTaskComm(tid, comm_name, 64);
@@ -103,7 +102,7 @@ void DebugHelper::dumpAllKernelStack() {
 void DebugHelper::dumpIonUsage() {
     //dump ion usage
     const size_t content_len = 4096;
-    char * content = (char*)malloc(content_len);
+    char * content = (char*)calloc(content_len, 1);
 
     //dump system heap
     content[0] = 0;
@@ -206,24 +205,24 @@ void* DebugHelper::watchLoop(void*data) {
             case WATCH_START:
                 if(pdata->cbk != NULL) {
                     pdata->trigTimes ++;
-                    ALOGE("Watche callback triggered (%d) .", pdata->trigTimes);
+                    ALOGV("Watche callback triggered (%d) .", pdata->trigTimes);
                     pdata->cbk();
                     SLEEP_AND_WAIT_STATUS_CHANGE(0, pdata->intervMs*1000*1000);
                 } else {
-                    ALOGE("No watch callbak, looping empty !");
-                    SLEEP_AND_WAIT_STATUS_CHANGE(10, 0);
+                    ALOGV("No watch callbak, looping empty !");
+                    SLEEP_AND_WAIT_STATUS_CHANGE(30, 0);
                 }
                 break;
             case WATCH_INIT:
-                ALOGD("Watch init, wait to START");
-                SLEEP_AND_WAIT_STATUS_CHANGE(10, 0);
+                ALOGV("Watch init, wait to START");
+                SLEEP_AND_WAIT_STATUS_CHANGE(30, 0);
                 break;
             case WATCH_STOP:
-                ALOGD("Watch stoped, wait to RESTART or EXIT");
-                SLEEP_AND_WAIT_STATUS_CHANGE(10, 0);
+                ALOGV("Watch stoped, wait to RESTART or EXIT");
+                SLEEP_AND_WAIT_STATUS_CHANGE(30, 0);
                 break;
             case WATCH_UNINIT:
-                ALOGE("Watch Exit watch thread!");
+                ALOGV("Watch Exit watch thread!");
                 pthread_mutex_unlock(&(pdata->mutex));
                 pthread_exit(NULL);
                 break;
