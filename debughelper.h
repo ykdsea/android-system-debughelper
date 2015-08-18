@@ -72,7 +72,7 @@ public:
 public:
     enum WatchStat {WATCH_UNINIT =0, WATCH_INIT, WATCH_START, WATCH_STOP};
     struct WatchData {
-            int intervMs;
+            suseconds_t intervMs;
             int trigTimes;
             WatchStat watchStatus;
             WatchCbk cbk;
