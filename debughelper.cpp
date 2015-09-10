@@ -112,21 +112,21 @@ Mali mem usage: 100294656
 Mali mem limit: 1073741824
 */
 #define MALI_MEM_DEBUG_PATH "/sys/kernel/debug/mali/gpu_memory"
-int DebugHelper::getMaliMem(){
+#define MALI_MEM_PREFIX "Mali mem usage:"
+long long DebugHelper::getMaliMem(){
     const size_t content_len = 4096;
     char * content = (char*)calloc(content_len, 1);
-    int totalsize = 0;
+    long long totalsize = 0;
 
     //dump system heap
     content[0] = 0;
     readFileToStr(MALI_MEM_DEBUG_PATH, content, content_len);
 
     //get total size
-    char* totalStr = strstr(content,"Mali mem usage:");
+    char* totalStr = strstr(content,MALI_MEM_PREFIX);
     if(totalStr != NULL) {
-        totalStr += 15;
-        sscanf(totalStr, "%d", totalsize);
-        ALOGD("get mali mem total %d\n", totalsize);
+        sscanf(totalStr+strlen(MALI_MEM_PREFIX), "%lld", &totalsize);
+        ALOGV("get mali mem total %lld\n", totalsize);
     }
 
     free (content);
@@ -175,21 +175,24 @@ orphaned allocations (info is from last known client):
 
 #define ION_SYSTEM_HEAP_DEBUG_PATH "/sys/kernel/debug/ion/heaps/vmalloc_ion"
 #define ION_CARVEOUT_HEAP_DEBUG_PATH "/sys/kernel/debug/ion/heaps/carveout_ion"
+#define ION_ORPHANED_MEM_PREFIX "total orphaned"
+#define ION_MEM_PREFIX "total"
 
-int DebugHelper::getIonMem(){
+long long DebugHelper::getIonMem(){
     const size_t content_len = 4096;
     char * content = (char*)calloc(content_len, 1);
-    int totalsize = 0;
+    long long totalsize = 0;
 
     //dump system heap
     content[0] = 0;
     readFileToStr(ION_SYSTEM_HEAP_DEBUG_PATH, content, content_len);
     //get total size
-    char* totalStr = strstr(content,"total    ");
+    char* tempStr = strstr(content,ION_ORPHANED_MEM_PREFIX);//skip orphaned info
+    tempStr += strlen(ION_ORPHANED_MEM_PREFIX);
+    char* totalStr = strstr(tempStr,ION_MEM_PREFIX);
     if(totalStr != NULL) {
-        totalStr += 6;
-        sscanf(totalStr, "%d", totalsize);
-        ALOGD("get vmalloc totalsize %d\n", totalsize);
+        sscanf(totalStr+strlen(ION_MEM_PREFIX), "%lld", &totalsize);
+        ALOGV("get vmalloc totalsize %lld\n", totalsize);
     }
 
     free (content);

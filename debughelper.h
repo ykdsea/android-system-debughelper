@@ -55,8 +55,8 @@ public:
     static void dumpIonUsage();
     static void dumpMaliUsage();
     static int getTaskComm(pid_t tid, char* tskname, size_t namelen);
-    static int getIonMem();
-    static int getMaliMem();
+    static long long getIonMem();
+    static long long getMaliMem();
 
 
     //sysrq dump
