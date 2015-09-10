@@ -305,7 +305,7 @@ void* DebugHelper::watchLoop(void*data) {
                 if(pdata->cbk != NULL) {
                     pdata->trigTimes ++;
                     ALOGV("Watche callback triggered (%d) .", pdata->trigTimes);
-                    pdata->cbk();
+                    pdata->cbk(pdata->watchData);
                     SLEEP_AND_WAIT_STATUS_CHANGE(pdata->intervMs/1000, (pdata->intervMs%1000)*1000*1000);
                 } else {
                     ALOGV("No watch callbak, looping empty !");
