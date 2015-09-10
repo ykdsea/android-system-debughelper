@@ -99,6 +99,104 @@ void DebugHelper::dumpAllKernelStack() {
     closedir(d);
 }
 
+/* mali mem info sample
+ /sys/kernel/debug/mali/gpu_memory                                          <
+  Name (:bytes)              pid         mali_mem    max_mali_mem     external_mem     ump_mem     dma_mem   
+==============================================================================================================
+  RenderThread               11065       38064128    38064128         0                0           33177600  
+  RenderThread               10780       20676608    65626112         0                0           0         
+  RenderThread               3598        34230272    51191808         0                0           0         
+  RenderThread               3356        2883584     11755520         0                0           2211840   
+  surfaceflinger             2743        4440064     6791168          49766400         0           43683840  
+Mali mem usage: 100294656
+Mali mem limit: 1073741824
+*/
+#define MALI_MEM_DEBUG_PATH "/sys/kernel/debug/mali/gpu_memory"
+int DebugHelper::getMaliMem(){
+    const size_t content_len = 4096;
+    char * content = (char*)calloc(content_len, 1);
+    int totalsize = 0;
+
+    //dump system heap
+    content[0] = 0;
+    readFileToStr(MALI_MEM_DEBUG_PATH, content, content_len);
+
+    //get total size
+    char* totalStr = strstr(content,"Mali mem usage:");
+    if(totalStr != NULL) {
+        totalStr += 15;
+        sscanf(totalStr, "%d", totalsize);
+        ALOGD("get mali mem total %d\n", totalsize);
+    }
+
+    free (content);
+    content = NULL;
+    return totalsize;
+}
+
+void DebugHelper::dumpMaliUsage(){
+     //dump mali usage
+    const size_t content_len = 4096;
+    char * content = (char*)calloc(content_len, 1);
+
+    //dump system heap
+    content[0] = 0;
+    readFileToStr(MALI_MEM_DEBUG_PATH, content, content_len);
+    ALOGE("Mali mem usage: ");
+    ALOGE("%s",content);
+
+    free(content);
+}
+
+/* ion memory sample
+          client              pid             size
+----------------------------------------------------
+  surfaceflinger             2743         43687936
+----------------------------------------------------
+orphaned allocations (info is from last known client):
+----------------------------------------------------
+  total orphaned                0
+          total          43687936
+   deferred free                0
+----------------------------------------------------
+0 order 8 highmem pages in pool = 0 total
+0 order 8 lowmem pages in pool = 0 total
+0 order 4 highmem pages in pool = 0 total
+0 order 4 lowmem pages in pool = 0 total
+0 order 3 highmem pages in pool = 0 total
+0 order 3 lowmem pages in pool = 0 total
+0 order 2 highmem pages in pool = 0 total
+0 order 2 lowmem pages in pool = 0 total
+0 order 1 highmem pages in pool = 0 total
+286 order 1 lowmem pages in pool = 2342912 total
+0 order 0 highmem pages in pool = 0 total
+1172 order 0 lowmem pages in pool = 4800512 total
+*/
+
+#define ION_SYSTEM_HEAP_DEBUG_PATH "/sys/kernel/debug/ion/heaps/vmalloc_ion"
+#define ION_CARVEOUT_HEAP_DEBUG_PATH "/sys/kernel/debug/ion/heaps/carveout_ion"
+
+int DebugHelper::getIonMem(){
+    const size_t content_len = 4096;
+    char * content = (char*)calloc(content_len, 1);
+    int totalsize = 0;
+
+    //dump system heap
+    content[0] = 0;
+    readFileToStr(ION_SYSTEM_HEAP_DEBUG_PATH, content, content_len);
+    //get total size
+    char* totalStr = strstr(content,"total    ");
+    if(totalStr != NULL) {
+        totalStr += 6;
+        sscanf(totalStr, "%d", totalsize);
+        ALOGD("get vmalloc totalsize %d\n", totalsize);
+    }
+
+    free (content);
+    content = NULL;
+    return totalsize;
+}
+
 void DebugHelper::dumpIonUsage() {
     //dump ion usage
     const size_t content_len = 4096;
@@ -106,18 +204,19 @@ void DebugHelper::dumpIonUsage() {
 
     //dump system heap
     content[0] = 0;
-    readFileToStr("/sys/kernel/debug/ion/heaps/vmalloc_ion", content, content_len);
+    readFileToStr(ION_SYSTEM_HEAP_DEBUG_PATH, content, content_len);
     ALOGE("ION System Heap: ");
     ALOGE("%s",content);
 
     //dump carveout heap
     content[0] = 0;
-    readFileToStr("/sys/kernel/debug/ion/heaps/carveout_ion", content, content_len);
+    readFileToStr(ION_CARVEOUT_HEAP_DEBUG_PATH, content, content_len);
     ALOGE("ION Carveout Heap(reserver): ");
     ALOGE("%s",content);
 
     free(content);
 }
+
 
 int DebugHelper::getTaskComm(pid_t tid, char* tskname, size_t namelen) {
     char path[128]={0};
@@ -236,11 +335,12 @@ void* DebugHelper::watchLoop(void*data) {
     return NULL;
 }
 
-int DebugHelper::createWatch(WatchCbk cbk, int intervalMs) {
+int DebugHelper::createWatch(WatchCbk cbk, void*data, int intervalMs) {
     if(mWatchData.watchStatus == WATCH_UNINIT) {
         mWatchData.watchStatus = WATCH_INIT;
         mWatchData.intervMs = intervalMs;
         mWatchData.cbk = cbk;
+        mWatchData.watchData = data;
         mWatchData.trigTimes = 0;
         pthread_mutex_init(&(mWatchData.mutex), NULL);
         pthread_cond_init(&(mWatchData.cond), NULL);
@@ -296,7 +396,7 @@ void DebugHelper::destroyWatch() {
 }
 
 //**************Watch functions for dump*******************
-void DebugHelper::watchFdUsage() {
+void DebugHelper::watchFdUsage(void* data) {
     static bool bDumpDetail = true;
     char name[128], link[128], comm[128];
     char *fdlink;

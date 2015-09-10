@@ -31,14 +31,14 @@
 #include "log/log.h"
 #include "cutils/properties.h"
 
-typedef void (*WatchCbk) ();
+typedef void (*WatchCbk) (void* data);
 
 class DebugHelper {
 public:
     static DebugHelper* getInstance();
 
     //watch thread
-    int createWatch(WatchCbk cbk, int intervalMs);
+    int createWatch(WatchCbk cbk, void*data, int intervalMs);
     void startWatch();
     void stopWatch();
     void destroyWatch();
@@ -53,7 +53,11 @@ public:
     static void dumpKernelStack(pid_t tid);
     static void dumpAllKernelStack();
     static void dumpIonUsage();
+    static void dumpMaliUsage();
     static int getTaskComm(pid_t tid, char* tskname, size_t namelen);
+    static int getIonMem();
+    static int getMaliMem();
+
 
     //sysrq dump
     static void dumpKernelBlockStat();
@@ -67,7 +71,7 @@ public:
     static bool isSystemServer();
 
     // function used to watch
-    static void watchFdUsage();
+    static void watchFdUsage(void* data);
 
 public:
     enum WatchStat {WATCH_UNINIT =0, WATCH_INIT, WATCH_START, WATCH_STOP};
@@ -76,6 +80,7 @@ public:
             int trigTimes;
             WatchStat watchStatus;
             WatchCbk cbk;
+            void* watchData;
             pthread_mutex_t mutex;
             pthread_cond_t cond;
     };
