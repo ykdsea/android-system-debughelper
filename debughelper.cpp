@@ -188,11 +188,13 @@ long long DebugHelper::getIonMem(){
     readFileToStr(ION_SYSTEM_HEAP_DEBUG_PATH, content, content_len);
     //get total size
     char* tempStr = strstr(content,ION_ORPHANED_MEM_PREFIX);//skip orphaned info
-    tempStr += strlen(ION_ORPHANED_MEM_PREFIX);
-    char* totalStr = strstr(tempStr,ION_MEM_PREFIX);
-    if(totalStr != NULL) {
-        sscanf(totalStr+strlen(ION_MEM_PREFIX), "%lld", &totalsize);
-        ALOGV("get vmalloc totalsize %lld\n", totalsize);
+    if (tempStr) {
+        tempStr += strlen(ION_ORPHANED_MEM_PREFIX);
+        char* totalStr = strstr(tempStr,ION_MEM_PREFIX);
+        if(totalStr != NULL) {
+            sscanf(totalStr+strlen(ION_MEM_PREFIX), "%lld", &totalsize);
+            ALOGV("get vmalloc totalsize %lld\n", totalsize);
+        }
     }
 
     free (content);
