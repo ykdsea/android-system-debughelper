@@ -234,7 +234,7 @@ int DebugHelper::getTaskComm(pid_t tid, char* tskname, size_t namelen) {
 }
 
 void DebugHelper::dumpKernelBlockStat() {
-    writeToFile("/proc/sysrq-trigger","w",1);
+    //writeToFile("/proc/sysrq-trigger","w",1);
 }
 
 void DebugHelper::dumpKernelActiveCpuStat() {
