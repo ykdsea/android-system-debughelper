@@ -246,8 +246,12 @@ void DebugHelper::dumpKernelMemoryStat() {
 }
 
 void DebugHelper::buildTracesFilePath(char* filepath) {
-    sprintf(filepath, "/data/anr/traces-%d-%d.txt", getpid(), mTraceCount);
-    mTraceCount ++;
+    if (isSystemServer()) {
+        sprintf(filepath, "/data/anr/traces-%d-%d.txt", getpid(), mTraceCount);
+        mTraceCount ++;
+    } else {
+	sprintf(filepath, "/data/anr/traces.txt");
+    }
 }
 
 bool DebugHelper::isSystemServer(){
