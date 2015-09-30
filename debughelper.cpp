@@ -246,11 +246,11 @@ void DebugHelper::dumpKernelMemoryStat() {
 }
 
 void DebugHelper::buildTracesFilePath(char* filepath) {
-    if (isSystemServer()) {
+    if ( 0/*isSystemServer()*/) {
         sprintf(filepath, "/data/anr/traces-%d-%d.txt", getpid(), mTraceCount);
         mTraceCount ++;
     } else {
-	sprintf(filepath, "/system/traces.txt"); //set to system will made the file open fail
+	sprintf(filepath, "/data/anr/traces.txt"); //set to system will made the file open fail
     }
 }
 
